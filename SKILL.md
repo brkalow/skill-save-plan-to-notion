@@ -1,11 +1,11 @@
 ---
 name: save-plan-to-notion
-description: Save a generated plan to Notion. Use this to persist implementation plans, project plans, or any structured plan document to a Plans page in Notion. Triggers on "save plan to notion", "store plan", "persist plan to notion".
+description: Save a generated plan to Notion. Use this to persist implementation plans, project plans, or any structured plan document to the Plans page in Notion. Triggers on "save plan to notion", "store plan", "persist plan to notion".
 ---
 
 # Save Plan to Notion
 
-This skill saves plans to Notion as sub-pages under a designated Plans page.
+This skill saves plans to Notion as sub-pages under the Plans page.
 
 ## Target Location
 
@@ -21,35 +21,25 @@ Each plan page follows this structure:
 1. **Title**: The plan name (extracted from the plan or provided explicitly)
 2. **Formatted Plan**: Heading `# Formatted plan` followed by the plan rendered with proper Notion markdown
 3. **Divider**: Horizontal rule `---`
-4. **Raw Plan**: The original plan markdown in a collapsible toggle block
+4. **Raw Plan**: The COMPLETE original plan markdown in a collapsible toggle block with escaped code blocks
 
-## Instructions
+## CRITICAL Requirements
 
-When saving a plan:
+### 1. Use Markdown Tables (NOT HTML)
 
-1. **Extract the title** from the plan content (usually the first heading) or use a provided title
+Notion does NOT render HTML `<table>` tags properly. Always use markdown tables:
 
-2. **Use the `mcp__notion__notion-create-pages` tool** with these parameters:
-   - `parent`: `{"page_id": "YOUR_NOTION_PAGE_ID"}`
-   - `pages`: Array with one page object containing `properties` and `content`
-
-3. **Format the content** using this structure:
-
-```
-# Formatted plan
-{the plan content rendered with proper Notion markdown - headings, lists, checkboxes, code blocks, tables, etc.}
-
----
-
-▶ Raw Plan Markdown
-	```text
-	{raw plan with all triple backticks replaced with CODEBLOCK_START and CODEBLOCK_END markers}
-	```
+```markdown
+| Column 1 | Column 2 | Column 3 |
+|----------|----------|----------|
+| Value 1  | Value 2  | Value 3  |
 ```
 
-## CRITICAL: Handling Code Blocks in Raw Plan
+NEVER use `<table>`, `<tr>`, `<td>` HTML tags.
 
-**The raw plan section MUST escape code block delimiters to prevent parsing conflicts.**
+### 2. Escape Code Blocks in Raw Plan Section
+
+**The raw plan section MUST escape ALL triple backtick delimiters.**
 
 Before inserting the raw plan into the code block:
 1. Replace all opening ``` (with or without language) with: `[CODEBLOCK:lang]` where lang is the language (or empty)
@@ -59,7 +49,44 @@ Example transformation:
 - Input: ` ```javascript\ncode here\n``` `
 - Output: `[CODEBLOCK:javascript]\ncode here\n[/CODEBLOCK]`
 
-This prevents nested code block delimiter conflicts in Notion.
+### 3. Include the COMPLETE Raw Plan
+
+The raw plan section must contain the ENTIRE original plan content, not a summary or placeholder. This is critical for reference.
+
+## Instructions
+
+When saving a plan:
+
+1. **Read the plan file** to get the full content
+
+2. **Extract the title** from the plan content (usually the first `#` heading)
+
+3. **Prepare the raw plan**:
+   - Take the COMPLETE plan content
+   - Replace all ` ``` ` with `[CODEBLOCK:lang]` and `[/CODEBLOCK]`
+
+4. **Use the `mcp__notion__notion-create-pages` tool** with:
+   - `parent`: `{"page_id": "YOUR_NOTION_PAGE_ID"}`
+   - `pages`: Array with one page object containing `properties` and `content`
+
+5. **Format the content** using this structure:
+
+```
+# Formatted plan
+
+{the plan content with:
+ - Proper markdown headings
+ - Markdown tables (NOT HTML)
+ - Code blocks with language tags
+ - Lists and checkboxes}
+
+---
+
+▶ Raw Plan Markdown
+	```text
+	{COMPLETE raw plan with ALL code blocks escaped using [CODEBLOCK:lang] and [/CODEBLOCK]}
+	```
+```
 
 ## Example
 
@@ -70,20 +97,27 @@ Given this plan:
 ### Overview
 Implement OAuth2 authentication.
 
+| Feature | Status |
+|---------|--------|
+| Login   | Done   |
+
 ### Code Example
 ```typescript
 const auth = new Auth();
 ```
 ```
 
-Create a page with:
-- **Title**: "Add User Authentication"
-- **Content**:
+Create a page with content:
 
 ```
 # Formatted plan
+
 ## Overview
 Implement OAuth2 authentication.
+
+| Feature | Status |
+|---------|--------|
+| Login   | Done   |
 
 ### Code Example
 ```typescript
@@ -98,6 +132,10 @@ const auth = new Auth();
 
 	### Overview
 	Implement OAuth2 authentication.
+
+	| Feature | Status |
+	|---------|--------|
+	| Login   | Done   |
 
 	### Code Example
 	[CODEBLOCK:typescript]
